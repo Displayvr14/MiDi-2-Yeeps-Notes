@@ -1,5 +1,6 @@
 #include "../include/utils.h"
 #include <map>
+#include <set>
 
 struct NoteEvent {
     int ticks;
@@ -52,10 +53,42 @@ std::string getColor(const std::string& noteName) {
 }
 
 std::string getInstrument(int program) {
+    // Piano: 0-7 (Acoustic Grand, Bright Acoustic, Electric Grand, etc.)
     if (program <= 7)   return "piano";
+    
+    // Synth: 8-87 (Synth Lead, Synth Pad, Synth Effects, etc.)
     if (program <= 87)  return "synth";
+    
+    // More synths and ethnic instruments
     if (program <= 95)  return "synth";
+    
+    // Default to piano for other instruments (organ, guitar, bass, strings, etc.)
+    // You might want to expand this based on your needs
+    if (program <= 127) return "piano";
+    
     return "piano";
+}
+
+bool isHiHat(int key) {
+    // General MIDI drum kit hi-hat notes
+    // 42: Closed Hi-Hat (F#2)
+    // 44: Pedal Hi-Hat (G#2)  
+    // 46: Open Hi-Hat (A#2)
+    return (key == 42 || key == 44 || key == 46);
+}
+
+std::string getDrumInstrument(int key) {
+    if (isHiHat(key)) return "hi-hat";
+    
+    // Optional: categorize other drum types
+    // 35-36: Kick/Bass Drum
+    // 37-40: Snare/Rim
+    // 41-43: Toms
+    // 45-47: Toms
+    // 48-50: Cymbals/Conga
+    // etc.
+    
+    return "drums";
 }
 
 std::vector<unsigned char> readFile(const char* path) {
@@ -129,11 +162,20 @@ void convert(std::vector<std::string> lines) {
             int channel = event & 0x0F;
             int key = stoi(lines[i++]);
             int velocity = stoi(lines[i++]);
+            
             const char* names[] = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
             std::string noteName = names[key % 12] + std::to_string((key / 12) - 1);
             std::string color = getColor(noteName);
-            std::string instrument = (channel == 9) ? "drums" :
-                                     channelInstrument.count(channel) ? channelInstrument[channel] : "piano";
+            
+            // Determine instrument
+            std::string instrument;
+            if (channel == 9) {
+                // Drum channel - check for hi-hat specifically
+                instrument = getDrumInstrument(key);
+            } else {
+                instrument = channelInstrument.count(channel) ? channelInstrument[channel] : "piano";
+            }
+            
             std::string noteStr = noteName + " (" + color + ") [" + instrument + "]";
 
             int yeeps = msToYeeps(ticksToMs(deltaTime, tempo, ticksPerQuarter));
